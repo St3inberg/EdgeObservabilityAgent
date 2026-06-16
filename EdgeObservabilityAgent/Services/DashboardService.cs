@@ -1,7 +1,6 @@
 using EdgeObservabilityAgent.Models;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
-using Spectre.Console.Rendering;
 
 namespace EdgeObservabilityAgent.Services;
 
@@ -44,7 +43,7 @@ public sealed class DashboardService
 
         try
         {
-            await AnsiConsole.Live(BuildLayout())
+            await AnsiConsole.Live(BuildTable())
                 .AutoClear(false)
                 .Overflow(VerticalOverflow.Ellipsis)
                 .Cropping(VerticalOverflowCropping.Bottom)
@@ -52,7 +51,7 @@ public sealed class DashboardService
                 {
                     while (!ct.IsCancellationRequested)
                     {
-                        ctx.UpdateTarget(BuildLayout());
+                        ctx.UpdateTarget(BuildTable());
                         ctx.Refresh();
                         await Task.Delay(1_000, ct);
                     }
@@ -69,83 +68,53 @@ public sealed class DashboardService
     }
 
     // ---------------------------------------------------------------------------
-    // Layout construction
+    // Table construction
     // ---------------------------------------------------------------------------
 
-    private IRenderable BuildLayout()
-    {
-        var layout = new Layout("Root")
-            .SplitRows(
-                new Layout("Top"),
-                new Layout("Bottom"));
-
-        layout["Top"].Update(BuildMetricsPanel());
-        layout["Bottom"].Update(BuildStatusPanel());
-
-        return layout;
-    }
-
-    private Panel BuildMetricsPanel()
+    private Table BuildTable()
     {
         var snap = _latest;
+        var statusColor = _resync.IsConnected ? "green" : "red";
+        var statusText  = _resync.IsConnected ? "Connected" : "Link Down";
+        var lastSync    = _resync.LastSyncedAt.HasValue
+            ? _resync.LastSyncedAt.Value.ToLocalTime().ToString("HH:mm:ss")
+            : "never";
 
         var table = new Table()
+            .Title("[bold white] Edge Observability Agent [/]")
             .Border(TableBorder.Rounded)
-            .AddColumn("[bold]Metric[/]")
-            .AddColumn("[bold]Value[/]");
+            .AddColumn(new TableColumn("[grey]Metric[/]").Width(22))
+            .AddColumn("[grey]Value[/]");
 
+        // ── Metrics ─────────────────────────────────────────────────────────
         if (snap is null)
         {
-            table.AddRow("Status", "[yellow]Waiting for first sample...[/]");
+            table.AddRow("[yellow]Status[/]", "[yellow]Waiting for first sample…[/]");
         }
         else
         {
             var cpuColor = snap.CpuUsage > 80 ? "red" : snap.CpuUsage > 50 ? "yellow" : "green";
-            var memPct = snap.MemoryTotalMb > 0
-                ? snap.MemoryUsageMb / snap.MemoryTotalMb * 100.0
-                : 0;
+            var memPct   = snap.MemoryTotalMb > 0
+                ? snap.MemoryUsageMb / snap.MemoryTotalMb * 100.0 : 0;
             var memColor = memPct > 80 ? "red" : memPct > 50 ? "yellow" : "green";
 
-            table.AddRow("Node", $"[cyan]{Markup.Escape(snap.NodeId)}[/]");
-            table.AddRow("Sampled At", snap.Timestamp.ToLocalTime().ToString("HH:mm:ss"));
-            table.AddRow("CPU Usage",
-                $"[{cpuColor}]{snap.CpuUsage:F1}%[/]");
+            table.AddRow("Node",       $"[cyan]{Markup.Escape(snap.NodeId)}[/]");
+            table.AddRow("Sampled at", snap.Timestamp.ToLocalTime().ToString("HH:mm:ss"));
+            table.AddRow("CPU",        $"[{cpuColor}]{snap.CpuUsage:F1} %[/]");
             table.AddRow("Memory",
-                $"[{memColor}]{snap.MemoryUsageMb:F0} MB[/] / {snap.MemoryTotalMb:F0} MB ([{memColor}]{memPct:F1}%[/])");
-            table.AddRow("Docker Containers",
+                $"[{memColor}]{snap.MemoryUsageMb:F0} MB / {snap.MemoryTotalMb:F0} MB  ({memPct:F1} %)[/]");
+            table.AddRow("Containers",
                 snap.Containers.Count == 0
-                    ? "[grey]none / unavailable[/]"
+                    ? "[grey]none / Docker unavailable[/]"
                     : $"[blue]{snap.Containers.Count}[/] running");
         }
 
-        return new Panel(table)
-            .Header("[bold white] Edge Observability Agent [/]")
-            .Border(BoxBorder.Double)
-            .Expand();
-    }
+        // ── Status ───────────────────────────────────────────────────────────
+        table.AddEmptyRow();
+        table.AddRow("Network",   $"[{statusColor}]{statusText}[/]");
+        table.AddRow("Buffered",  $"[yellow]{_resync.PendingCount}[/] rows");
+        table.AddRow("Last sync", lastSync);
 
-    private Panel BuildStatusPanel()
-    {
-        var statusColor = _resync.IsConnected ? "green" : "red";
-        var statusText = _resync.IsConnected ? "Connected" : "Link Down";
-
-        var lastSync = _resync.LastSyncedAt.HasValue
-            ? _resync.LastSyncedAt.Value.ToLocalTime().ToString("HH:mm:ss")
-            : "[grey]never[/]";
-
-        var grid = new Grid()
-            .AddColumn()
-            .AddColumn()
-            .AddColumn();
-
-        grid.AddRow(
-            $"[bold]Network:[/]  [{statusColor}]{statusText}[/]",
-            $"[bold]Buffered:[/]  [yellow]{_resync.PendingCount}[/] rows",
-            $"[bold]Last Sync:[/]  {lastSync}");
-
-        return new Panel(grid)
-            .Header("[bold white] Status [/]")
-            .Border(BoxBorder.Rounded)
-            .Expand();
+        return table;
     }
 }
