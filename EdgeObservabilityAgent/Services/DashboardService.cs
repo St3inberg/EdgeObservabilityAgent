@@ -33,6 +33,15 @@ public sealed class DashboardService
     /// </summary>
     public async Task RunAsync(CancellationToken ct)
     {
+        // Spectre.Console's live display requires an interactive TTY.
+        // Fall back to no-op if stdout is redirected (e.g. piped or CI).
+        if (!AnsiConsole.Profile.Capabilities.Interactive)
+        {
+            _logger.LogInformation("Non-interactive terminal detected — live dashboard suppressed.");
+            await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+            return;
+        }
+
         try
         {
             await AnsiConsole.Live(BuildLayout())

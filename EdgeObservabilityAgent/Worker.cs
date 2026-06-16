@@ -40,8 +40,6 @@ public sealed class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Initialise the SQLite schema before anything else.
-        await _buffer.InitAsync(stoppingToken);
         _logger.LogInformation("Worker started. Collecting metrics every {Interval}s.", CollectInterval.TotalSeconds);
 
         // Run the live dashboard in its own task so it doesn't block collection.

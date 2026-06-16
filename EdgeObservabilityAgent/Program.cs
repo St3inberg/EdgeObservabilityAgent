@@ -1,5 +1,6 @@
 using EdgeObservabilityAgent;
 using EdgeObservabilityAgent.Services;
+using Spectre.Console;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -7,8 +8,15 @@ var builder = Host.CreateApplicationBuilder(args);
 // Logging
 // ---------------------------------------------------------------------------
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+// When running in an interactive terminal the Spectre.Console live dashboard
+// is the UI — suppress console log output so it doesn't clobber the display.
+// In non-interactive contexts (CI, pipes, this tool) use normal console logs.
+if (!AnsiConsole.Profile.Capabilities.Interactive)
+{
+    builder.Logging.AddConsole();
+}
 
 // ---------------------------------------------------------------------------
 // HTTP client used by ResyncService to reach the HQ API.
@@ -43,4 +51,9 @@ builder.Services.AddHostedService<Worker>();
 // Build and run
 // ---------------------------------------------------------------------------
 var host = builder.Build();
+
+// Initialise the SQLite schema before any hosted service starts,
+// so ResyncService can safely query the DB on its first tick.
+await host.Services.GetRequiredService<BufferRepository>().InitAsync();
+
 await host.RunAsync();
