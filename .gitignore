@@ -1,0 +1,23 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+*.swo
+
+## Build outputs
+*.dll
+*.exe
+*.pdb
+*.cache
+*.nupkg
+
+## Secrets
+appsettings.Development.json
+*.env
+
+## OS
+.DS_Store
+Thumbs.db

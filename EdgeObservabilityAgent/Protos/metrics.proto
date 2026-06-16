@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+option csharp_namespace = "EdgeObservabilityAgent.Protos";
+
+import "google/protobuf/timestamp.proto";
+
+package metrics;
+
+message ContainerStatus {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string image = 4;
+}
+
+message MetricPayload {
+  string node_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  double cpu_usage = 3;
+  double memory_usage_mb = 4;
+  double memory_total_mb = 5;
+  repeated ContainerStatus containers = 6;
+}
+
+service MetricsService {
+  rpc SendMetrics (MetricPayload) returns (MetricAck);
+}
+
+message MetricAck {
+  bool accepted = 1;
+  string message = 2;
+}
