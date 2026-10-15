@@ -17,6 +17,19 @@ EdgeObservabilityAgent is a .NET 9 solution for collecting edge-node telemetry, 
   - accepts telemetry via `POST /ingest`
   - exposes latest per-node snapshots via `GET /metrics`
 
+## Project files
+
+- `EdgeObservabilityAgent.sln` — solution entry containing both projects
+- `EdgeObservabilityAgent/Program.cs` — dependency registration and host startup
+- `EdgeObservabilityAgent/Worker.cs` — metric collection loop and dashboard update flow
+- `EdgeObservabilityAgent/Services/BufferRepository.cs` — SQLite buffering and sync state storage
+- `EdgeObservabilityAgent/Services/ResyncService.cs` — connectivity checks and buffered payload resync
+- `EdgeObservabilityAgent/Services/SystemMetricsService.cs` — CPU/memory/Docker metric collection
+- `EdgeObservabilityAgent/Services/DashboardService.cs` — live terminal dashboard rendering
+- `EdgeObservabilityAgent/Models/MetricPayload.cs` — payload/domain models
+- `EdgeObservabilityAgent/Protos/metrics.proto` — protobuf schema for metrics
+- `HqCollector/Program.cs` — minimal API with `/health`, `/ingest`, and `/metrics`
+
 ## Prerequisites
 
 - .NET SDK 9.0+
